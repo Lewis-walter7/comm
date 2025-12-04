@@ -1,0 +1,518 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile fields
+  bio       String?
+  phone     String?
+  location  String?
+  avatarUrl String?
+
+  // Two-Factor Authentication
+  twoFactorEnabled Boolean  @default(false)
+  twoFactorSecret  String? // Encrypted TOTP secret
+  recoveryCodes    String[] // Array of hashed recovery codes
+
+  // Onboarding and Account Status
+  hasCompletedOnboarding Boolean   @default(false)
+  deletedAt              DateTime?
+  scheduledDeletionAt    DateTime?
+
+  // Relations
+  ownedWorkspaces         Workspace[]              @relation("WorkspaceOwner")
+  workspaceMemberships    WorkspaceMember[]
+  ownedProjects           Project[]                @relation("ProjectOwner")
+  projectMembers          ProjectMember[]
+  documents               Document[]               @relation("DocumentCreator")
+  notifications           Notification[]
+  notificationPreferences NotificationPreferences?
+  activities              Activity[]
+  sessions                Session[]
+
+  // Chat Relations
+  createdConversations    Conversation[]       @relation("ConversationCreator")
+  conversationMemberships ConversationMember[]
+  messages                Message[]            @relation("MessageAuthor")
+  messageReadReceipts     MessageReadReceipt[] @relation("MessageReadBy")
+  presence                PresenceStatus[]     @relation("UserPresence")
+
+  // Group Chat Invites
+  sentGroupInvites     GroupChatInvite[] @relation("GroupChatInviter")
+  receivedGroupInvites GroupChatInvite[] @relation("GroupChatInvitee")
+}
+
+model Workspace {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  ownerId     String
+  inviteCode  String?  @unique // For joining via code
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  owner         User                 @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members       WorkspaceMember[]
+  projects      Project[]
+  documents     Document[]
+  activities    Activity[]
+  conversations Conversation[]
+  presence      PresenceStatus[]     @relation("WorkspacePresence")
+  groupInvites  GroupChatInvite[]    @relation("WorkspaceGroupInvites")
+  searchIndex   MessageSearchIndex[] @relation("WorkspaceSearchIndex")
+
+  @@index([ownerId])
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+  GUEST
+}
+
+enum MemberStatus {
+  PENDING
+  ACTIVE
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole @default(MEMBER)
+  status      MemberStatus  @default(ACTIVE)
+  joinedAt    DateTime      @default(now())
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  workspaceId String
+  name        String
+  description String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner     User            @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members   ProjectMember[]
+  documents Document[]
+
+  attachments Attachment[]
+  activities  Activity[]
+
+  @@index([workspaceId])
+  @@index([ownerId])
+}
+
+enum ProjectRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+model ProjectMember {
+  id        String      @id @default(uuid())
+  projectId String
+  userId    String
+  role      ProjectRole @default(VIEWER)
+  joinedAt  DateTime    @default(now())
+
+  // Relations
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+}
+
+model Document {
+  id               String   @id @default(uuid())
+  workspaceId      String
+  projectId        String?
+  title            String
+  encryptedContent String   @db.Text // Encrypted Yjs document state
+  createdById      String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  workspace     Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project       Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy     User             @relation("DocumentCreator", fields: [createdById], references: [id])
+  updates       DocumentUpdate[]
+  activities    Activity[]
+  conversations Conversation[]
+
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([createdById])
+}
+
+model DocumentUpdate {
+  id         String   @id @default(uuid())
+  documentId String
+  update     Bytes
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+}
+
+enum ConversationType {
+  DM
+  GROUP
+  DOCUMENT
+}
+
+enum ConversationRole {
+  ADMIN
+  MEMBER
+}
+
+model Conversation {
+  id          String           @id @default(uuid())
+  workspaceId String
+  type        ConversationType
+  name        String? // null for DMs
+  description String?
+  icon        String? // emoji or icon identifier
+  createdById String
+  documentId  String? // for document chats
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // E2E encryption settings for DMs
+  isEncrypted   Boolean @default(false)
+  encryptionKey String? // encrypted with workspace key
+
+  // Group Chat Settings
+  isPrivate         Boolean  @default(false) // Private groups don't show history to new members
+  maxMembers        Int?     @default(100) // Max members allowed
+  allowMemberInvite Boolean  @default(true) // Members can invite others
+  muteNotifications Boolean  @default(false) // Workspace-level mute
+  pinnedMessageIds  String[] // Array of pinned message IDs
+
+  // Relations
+  workspace    Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy    User                 @relation("ConversationCreator", fields: [createdById], references: [id])
+  document     Document?            @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  members      ConversationMember[]
+  messages     Message[]
+  readReceipts MessageReadReceipt[]
+  invites      GroupChatInvite[]
+  searchIndex  MessageSearchIndex[] @relation("ConversationSearchIndex")
+
+  @@index([workspaceId])
+  @@index([type])
+  @@index([documentId])
+  @@index([createdById])
+  @@index([isPrivate])
+}
+
+model ConversationMember {
+  id             String           @id @default(uuid())
+  conversationId String
+  userId         String
+  role           ConversationRole @default(MEMBER)
+  joinedAt       DateTime         @default(now())
+  lastReadAt     DateTime?
+  leftAt         DateTime? // When user left the group
+
+  // Member Preferences
+  muteNotifications    Boolean @default(false)
+  customNickname       String? // Custom nickname in this group
+  notificationSettings Json? // Custom notification preferences
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+  @@index([leftAt])
+}
+
+model Message {
+  id             String    @id @default(uuid())
+  conversationId String
+  userId         String
+  content        String    @db.Text // encrypted or plain based on conversation settings
+  attachments    Json? // array of attachment objects
+  replyToId      String? // for threading
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  reactions      Json? // {emoji: [userIds]}
+  mentions       String[] // Array of mentioned user IDs
+  messageType    String    @default("text") // text, image, file, voice, system
+  metadata       Json? // Additional message data
+  isPinned       Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+
+  // Search and indexing
+  contentVector  String?  @db.Text // For full-text search
+  searchKeywords String[] // Extracted keywords for search
+
+  // Relations
+  conversation Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User                 @relation("MessageAuthor", fields: [userId], references: [id])
+  replyTo      Message?             @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies      Message[]            @relation("MessageReplies")
+  readReceipts MessageReadReceipt[]
+  searchIndex  MessageSearchIndex[] @relation("MessageSearchIndex")
+
+  @@index([conversationId])
+  @@index([userId])
+  @@index([replyToId])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@index([mentions])
+  @@index([messageType])
+  @@index([isPinned])
+  @@index([searchKeywords])
+}
+
+model MessageReadReceipt {
+  id             String   @id @default(uuid())
+  messageId      String
+  conversationId String
+  userId         String
+  readAt         DateTime @default(now())
+
+  // Relations
+  message      Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation("MessageReadBy", fields: [userId], references: [id])
+
+  @@unique([messageId, userId])
+  @@index([conversationId])
+  @@index([userId])
+  @@index([readAt])
+}
+
+model PresenceStatus {
+  id          String   @id @default(uuid())
+  userId      String
+  workspaceId String
+  status      String   @default("offline") // online, away, busy, offline
+  lastSeen    DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user      User      @relation("UserPresence", fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation("WorkspacePresence", fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+  @@index([status])
+}
+
+model Attachment {
+  id            String   @id @default(uuid())
+  projectId     String?
+  messageId     String?
+  fileName      String
+  filePath      String
+  fileSize      Int
+  mimeType      String
+  isEncrypted   Boolean  @default(false)
+  encryptionKey String? // encrypted with workspace key
+  createdAt     DateTime @default(now())
+
+  // Relations
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([messageId])
+}
+
+enum NotificationType {
+  WORKSPACE_INVITE
+  WORKSPACE_JOIN_REQUEST
+  PROJECT_INVITE
+  MENTION
+  DOCUMENT_UPDATE
+  CHAT_MESSAGE
+  MEMBER_JOINED
+  MEMBER_LEFT
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  link      String? // Link to relevant page
+  read      Boolean          @default(false)
+  metadata  Json? // Additional context
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+model NotificationPreferences {
+  id               String  @id @default(uuid())
+  userId           String  @unique
+  workspaceInvites Boolean @default(true)
+  projectInvites   Boolean @default(true)
+  mentions         Boolean @default(true)
+  documentUpdates  Boolean @default(true)
+  chatMessages     Boolean @default(false) // Off by default
+  memberActivity   Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum ActivityType {
+  USER_LOGIN
+  USER_LOGOUT
+  WORKSPACE_CREATED
+  WORKSPACE_UPDATED
+  WORKSPACE_JOIN_REQUEST
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  PROJECT_DELETED
+  MEMBER_ADDED
+  MEMBER_REMOVED
+  DOCUMENT_CREATED
+  DOCUMENT_UPDATED
+  DOCUMENT_DELETED
+  MESSAGE_SENT
+  FILE_UPLOADED
+}
+
+model Activity {
+  id          String       @id @default(uuid())
+  userId      String
+  type        ActivityType
+  workspaceId String?
+  projectId   String?
+  documentId  String?
+  description String // Human-readable description
+  metadata    Json? // Additional context
+  createdAt   DateTime     @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  document  Document?  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model DailyAnalytics {
+  id                String   @id @default(uuid())
+  date              DateTime @unique
+  totalUsers        Int      @default(0)
+  activeUsers       Int      @default(0)
+  newProjects       Int      @default(0)
+  documentsCreated  Int      @default(0)
+  messagesCount     Int      @default(0)
+  groupChatsCreated Int      @default(0)
+  createdAt         DateTime @default(now())
+
+  @@index([date])
+}
+
+// Group Chat Invite Model
+model GroupChatInvite {
+  id             String   @id @default(uuid())
+  conversationId String
+  inviterId      String
+  inviteeId      String
+  workspaceId    String
+  status         String   @default("pending") // pending, accepted, declined, expired
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  inviter      User         @relation("GroupChatInviter", fields: [inviterId], references: [id])
+  invitee      User         @relation("GroupChatInvitee", fields: [inviteeId], references: [id])
+  workspace    Workspace    @relation("WorkspaceGroupInvites", fields: [workspaceId], references: [id])
+
+  @@unique([conversationId, inviteeId])
+  @@index([conversationId])
+  @@index([inviterId])
+  @@index([inviteeId])
+  @@index([workspaceId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+// Message Search Index for advanced search capabilities
+model MessageSearchIndex {
+  id             String   @id @default(uuid())
+  messageId      String   @unique
+  conversationId String
+  workspaceId    String
+  content        String   @db.Text
+  keywords       String[]
+  authorId       String
+  createdAt      DateTime
+
+  // Relations
+  message      Message      @relation("MessageSearchIndex", fields: [messageId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation("ConversationSearchIndex", fields: [conversationId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation("WorkspaceSearchIndex", fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([conversationId])
+  @@index([keywords])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  userId     String
+  deviceInfo String // User-Agent string
+  ipAddress  String
+  location   String? // Approximate location from IP
+  lastActive DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([lastActive])
+}

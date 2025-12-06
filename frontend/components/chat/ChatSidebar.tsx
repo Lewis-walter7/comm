@@ -211,11 +211,10 @@ function ConversationItem({
 
   return (
     <div
-      className={`group relative p-4 rounded-xl cursor-pointer transition-all duration-200 ${
-        isActive
+      className={`group relative p-4 rounded-xl cursor-pointer transition-all duration-200 ${isActive
           ? "glass-strong border border-violet-200 dark:border-violet-500/30 neon-glow-violet"
           : "glass hover:glass-strong hover:scale-[1.02] text-gray-700 dark:text-gray-200"
-      }`}
+        }`}
       onClick={() => onSelect(conversation)}
     >
       <div className="flex items-center justify-between">
@@ -262,16 +261,16 @@ function ConversationItem({
 
       {/* Context Menu */}
       {showMenu && (
-        <div className="absolute right-2 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-10">
-          <button className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center space-x-2">
+        <div className="absolute right-2 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-1 z-10">
+          <button className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2 text-gray-700 dark:text-gray-200">
             <Bell className="h-4 w-4" />
             <span>Notifications</span>
           </button>
-          <button className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center space-x-2">
+          <button className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2 text-gray-700 dark:text-gray-200">
             <Edit2 className="h-4 w-4" />
             <span>Edit</span>
           </button>
-          <button className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 text-red-600 flex items-center space-x-2">
+          <button className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 dark:text-red-400 flex items-center space-x-2">
             <Trash2 className="h-4 w-4" />
             <span>Delete</span>
           </button>
@@ -360,11 +359,10 @@ export default function ChatSidebar() {
             <button
               key={key}
               onClick={() => setSelectedFilter(key as any)}
-              className={`flex items-center space-x-1 px-3 py-1.5 rounded-md text-sm transition-colors ${
-                selectedFilter === key
+              className={`flex items-center space-x-1 px-3 py-1.5 rounded-md text-sm transition-colors ${selectedFilter === key
                   ? "bg-blue-100 text-blue-700"
                   : "text-gray-600 hover:text-gray-800 hover:bg-gray-100"
-              }`}
+                }`}
             >
               {Icon && <Icon className="h-3 w-3" />}
               <span>{label}</span>

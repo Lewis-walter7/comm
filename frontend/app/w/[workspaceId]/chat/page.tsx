@@ -29,6 +29,8 @@ export default function ChatPage() {
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [connectionTest, setConnectionTest] = useState<any>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(320); // 320px default (80 * 4)
+  const [isResizing, setIsResizing] = useState(false);
 
   useEffect(() => {
     // Prevent multiple initializations
@@ -139,7 +141,7 @@ export default function ChatPage() {
           setDebugInfo({
             hasToken,
             backendHealth: null,
-            error: error.message,
+            error: error instanceof Error ? error.message : "Unknown error occurred",
             workspaceId,
             timestamp: new Date().toISOString(),
             tests: {
@@ -172,6 +174,38 @@ export default function ChatPage() {
 
     initializeChat();
   }, [workspaceId, setWorkspace, hasInitialized]);
+
+  // Handle sidebar resizing
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsResizing(true);
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+
+      const newWidth = e.clientX;
+      // Constrain between 240px and 600px
+      if (newWidth >= 240 && newWidth <= 600) {
+        setSidebarWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
 
   if (isLoading) {
     return (
@@ -392,22 +426,36 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-full gap-4 p-4">
-      {/* Sidebar */}
+    <div className="flex h-full">
+      {/* Resizable Sidebar */}
       {state.showSidebar && (
-        <div className="w-80 glass rounded-2xl flex flex-col overflow-hidden">
-          <ChatSidebar />
-        </div>
+        <>
+          <div
+            className="flex-shrink-0 glass rounded-r-2xl flex flex-col overflow-hidden"
+            style={{ width: `${sidebarWidth}px` }}
+          >
+            <ChatSidebar />
+          </div>
+          {/* Resize Handle */}
+          <div
+            className="w-1 hover:w-2 cursor-col-resize bg-white/10 hover:bg-primary-500/50 transition-all group relative flex-shrink-0"
+            onMouseDown={handleMouseDown}
+          >
+            <div className="absolute inset-y-0 -left-1 -right-1 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="w-1 h-12 bg-primary-500 rounded-full shadow-lg" />
+            </div>
+          </div>
+        </>
       )}
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Chat Area - Full Width */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {state.activeConversation ? (
-          <div className="glass rounded-2xl h-full overflow-hidden">
+          <div className="glass h-full overflow-hidden flex flex-col">
             <ChatWindow />
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
+          <div className="flex-1 flex items-center justify-center p-8">
             <div className="glass rounded-2xl p-12 text-center max-w-lg w-full">
               <div className="w-20 h-20 bg-gradient-to-br from-violet-100 to-blue-100 dark:from-violet-500/20 dark:to-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6 neon-glow-blue">
                 <MessageCircle className="h-10 w-10 text-violet-600 dark:text-violet-400" />
@@ -439,9 +487,9 @@ export default function ChatPage() {
         )}
       </div>
 
-      {/* Thread Panel */}
+      {/* Thread Panel - Overlay style when shown */}
       {state.showThreadPanel && (
-        <div className="w-96 glass rounded-2xl overflow-hidden">
+        <div className="w-96 glass rounded-l-2xl overflow-hidden flex-shrink-0 ml-1">
           <ThreadPanel />
         </div>
       )}

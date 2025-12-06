@@ -137,6 +137,7 @@ body {
 }
 
 @keyframes pulse-glow {
+
     0%,
     100% {
         opacity: 0.5;
@@ -148,6 +149,7 @@ body {
 }
 
 @keyframes cursor-blink {
+
     0%,
     49% {
         opacity: 1;
@@ -169,6 +171,26 @@ body {
     }
 }
 
+@keyframes slide-in-right {
+    from {
+        transform: translateX(100%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
 .animate-fade-in-up {
     animation: fadeInUp 0.3s ease-out;
 }
@@ -179,6 +201,14 @@ body {
 
 .animate-cursor-blink {
     animation: cursor-blink 1s step-end infinite;
+}
+
+.animate-slide-in-right {
+    animation: slide-in-right 0.3s ease-out;
+}
+
+.animate-fade-in {
+    animation: fade-in 0.2s ease-out;
 }
 
 /* Selection styles */

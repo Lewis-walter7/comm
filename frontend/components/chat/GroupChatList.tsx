@@ -7,13 +7,7 @@ import {
   Users,
   Hash,
   Lock,
-  MoreVertical,
   UserPlus,
-  Settings,
-  LogOut,
-  Trash2,
-  Pin,
-  Bell,
   BellOff,
   CheckCircle,
 } from "lucide-react";
@@ -39,9 +33,6 @@ interface GroupChatItemProps {
   isActive: boolean;
   currentUserId: string;
   onSelect: () => void;
-  onLeave: () => void;
-  onDelete: () => void;
-  onToggleMute: () => void;
 }
 
 function GroupChatItem({
@@ -49,18 +40,11 @@ function GroupChatItem({
   isActive,
   currentUserId,
   onSelect,
-  onLeave,
-  onDelete,
-  onToggleMute,
 }: GroupChatItemProps) {
-  const [showMenu, setShowMenu] = useState(false);
-
   const currentMember = groupChat.members.find(
     (m) => m.userId === currentUserId,
   );
-  const isAdmin = currentMember?.role === ConversationRole.ADMIN;
   const isMuted = currentMember?.muteNotifications || false;
-  const isCreator = groupChat.createdById === currentUserId;
 
   const getLastActivity = () => {
     if (groupChat.lastMessage) {
@@ -88,22 +72,20 @@ function GroupChatItem({
 
   return (
     <div
-      className={`group relative p-4 rounded-xl cursor-pointer transition-all duration-200 ${
-        isActive
-          ? "glass-strong border border-violet-200 dark:border-violet-500/30 neon-glow-violet"
-          : "glass hover:glass-strong hover:scale-[1.02]"
-      }`}
+      className={`group relative p-4 rounded-xl cursor-pointer transition-all duration-200 ${isActive
+        ? "glass-strong border border-violet-200 dark:border-violet-500/30 neon-glow-violet"
+        : "glass hover:glass-strong hover:scale-[1.02]"
+        }`}
       onClick={onSelect}
     >
       <div className="flex items-start justify-between">
         <div className="flex items-start space-x-3 flex-1 min-w-0">
           {/* Group Icon */}
           <div
-            className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
-              isActive
-                ? "bg-gradient-to-br from-violet-400 to-blue-500 neon-glow-blue"
-                : "glass-strong"
-            }`}
+            className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${isActive
+              ? "bg-gradient-to-br from-violet-400 to-blue-500 neon-glow-blue"
+              : "glass-strong"
+              }`}
           >
             {groupChat.icon || "💬"}
           </div>
@@ -144,104 +126,14 @@ function GroupChatItem({
           </div>
         </div>
 
-        {/* Unread Badge & Menu */}
-        <div className="flex flex-col items-end space-y-2 ml-2">
-          {groupChat.unreadCount > 0 && (
+        {/* Unread Badge */}
+        {groupChat.unreadCount > 0 && (
+          <div className="ml-2">
             <div className="bg-gradient-to-r from-violet-500 to-blue-500 text-white text-xs font-bold rounded-full px-2 py-1 min-w-[24px] text-center neon-glow-violet">
               {groupChat.unreadCount > 99 ? "99+" : groupChat.unreadCount}
             </div>
-          )}
-
-          {/* Context Menu */}
-          <div className="relative">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowMenu(!showMenu);
-              }}
-              className="p-1.5 glass-strong rounded-lg hover:neon-glow-blue transition-all duration-200 opacity-0 group-hover:opacity-100"
-            >
-              <MoreVertical className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-            </button>
-
-            {showMenu && (
-              <>
-                {/* Backdrop to close menu */}
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowMenu(false);
-                  }}
-                />
-
-                {/* Menu */}
-                <div className="absolute right-0 top-full mt-1 w-48 glass-strong rounded-xl border border-white/20 shadow-lg z-20 py-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleMute();
-                      setShowMenu(false);
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-white/10 transition-colors flex items-center space-x-2"
-                  >
-                    {isMuted ? (
-                      <>
-                        <Bell className="h-4 w-4" />
-                        <span>Unmute</span>
-                      </>
-                    ) : (
-                      <>
-                        <BellOff className="h-4 w-4" />
-                        <span>Mute</span>
-                      </>
-                    )}
-                  </button>
-
-                  {isAdmin && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelect();
-                        setShowMenu(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-white/10 transition-colors flex items-center space-x-2"
-                    >
-                      <Settings className="h-4 w-4" />
-                      <span>Settings</span>
-                    </button>
-                  )}
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onLeave();
-                      setShowMenu(false);
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-white/10 transition-colors flex items-center space-x-2"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span>Leave Group</span>
-                  </button>
-
-                  {isCreator && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete();
-                        setShowMenu(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors flex items-center space-x-2"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span>Delete Group</span>
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -347,11 +239,10 @@ export default function GroupChatList({
             <button
               key={key}
               onClick={() => setFilter(key as any)}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                filter === key
-                  ? "bg-linear-to-r from-violet-500 to-blue-500 text-white neon-glow-violet"
-                  : "glass-strong text-gray-700 dark:text-gray-200 hover:glass"
-              }`}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${filter === key
+                ? "bg-linear-to-r from-violet-500 to-blue-500 text-white neon-glow-violet"
+                : "glass-strong text-gray-700 dark:text-gray-200 hover:glass"
+                }`}
             >
               <Icon className="h-3.5 w-3.5" />
               <span>{label}</span>
@@ -411,14 +302,6 @@ export default function GroupChatList({
               isActive={groupChat.id === activeGroupChatId}
               currentUserId={currentUserId}
               onSelect={() => handleGroupSelect(groupChat)}
-              onLeave={() => onLeaveGroup?.(groupChat.id)}
-              onDelete={() => onDeleteGroup?.(groupChat.id)}
-              onToggleMute={() => {
-                const member = groupChat.members.find(
-                  (m) => m.userId === currentUserId,
-                );
-                onUpdatePreferences?.(groupChat.id, !member?.muteNotifications);
-              }}
             />
           ))
         )}

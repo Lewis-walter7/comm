@@ -2,7 +2,10 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useChat } from "../../context/chat/ChatContext";
+import { useAuth } from "../../context/AuthContext";
 import { MessageDto } from "../../services/chat/chatApi";
+import Message from "./Message";
+import GroupSettingsPage from "./GroupSettingsPage";
 import {
   Send,
   Smile,
@@ -23,267 +26,6 @@ import {
 import { formatDistanceToNow, format, isToday, isYesterday } from "date-fns";
 import EmojiPicker from "emoji-picker-react";
 
-interface MessageProps {
-  message: MessageDto;
-  showAvatar: boolean;
-  isFirst: boolean;
-  onReply: (message: MessageDto) => void;
-  onEdit: (message: MessageDto) => void;
-  onDelete: (messageId: string) => void;
-  onReaction: (messageId: string, emoji: string) => void;
-}
-
-function Message({
-  message,
-  showAvatar,
-  isFirst,
-  onReply,
-  onEdit,
-  onDelete,
-  onReaction,
-}: MessageProps) {
-  const [showMenu, setShowMenu] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const { state } = useChat();
-
-  const isOwn = message.userId === state.currentWorkspace; // This should be current user ID
-  const isEdited = message.editedAt !== null;
-  const isDeleted = message.deletedAt !== null;
-
-  const formatMessageTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    if (isToday(date)) {
-      return format(date, "HH:mm");
-    } else if (isYesterday(date)) {
-      return `Yesterday ${format(date, "HH:mm")}`;
-    } else {
-      return format(date, "MMM d, HH:mm");
-    }
-  };
-
-  const reactions = message.reactions
-    ? JSON.parse(JSON.stringify(message.reactions))
-    : {};
-
-  if (isDeleted) {
-    return (
-      <div className="group py-3 px-4 mx-2 rounded-xl glass hover:glass-strong transition-all duration-200">
-        <div className="flex items-center space-x-3 text-gray-500 dark:text-gray-400 italic">
-          <div className="p-1.5 bg-red-100 dark:bg-red-500/20 rounded-lg">
-            <Trash2 className="h-4 w-4 text-red-500" />
-          </div>
-          <span className="font-medium">This message was deleted</span>
-          <span className="text-xs opacity-70">
-            {formatMessageTime(message.createdAt)}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="group py-3 px-4 mx-2 rounded-xl glass hover:glass-strong hover:neon-glow-blue transition-all duration-200 relative">
-      {message.replyTo && (
-        <div className="mb-4 p-3 glass-strong rounded-xl border-l-4 border-violet-500">
-          <div className="flex items-center space-x-2 text-sm text-violet-600 dark:text-violet-400 mb-2">
-            <Reply className="h-4 w-4" />
-            <span className="font-semibold">
-              Replying to {message.replyTo.user.name}
-            </span>
-          </div>
-          <p className="text-sm text-gray-700 dark:text-gray-300 truncate">
-            {message.replyTo.content.substring(0, 100)}
-            {message.replyTo.content.length > 100 ? "..." : ""}
-          </p>
-        </div>
-      )}
-
-      <div className="flex items-start space-x-3">
-        {showAvatar ? (
-          <div className="flex-shrink-0">
-            {message.user.avatarUrl ? (
-              <img
-                src={message.user.avatarUrl}
-                alt={message.user.name}
-                className="h-10 w-10 rounded-full ring-2 ring-violet-200 dark:ring-violet-500/30"
-              />
-            ) : (
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-violet-400 to-blue-500 flex items-center justify-center text-sm font-bold text-white shadow-lg">
-                {message.user.name.charAt(0).toUpperCase()}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="w-10 flex-shrink-0" />
-        )}
-
-        <div className="flex-1 min-w-0">
-          {isFirst && (
-            <div className="flex items-center space-x-3 mb-2">
-              <span className="font-bold text-gray-900 dark:text-white">
-                {message.user.name}
-              </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full">
-                {formatMessageTime(message.createdAt)}
-              </span>
-              {isEdited && (
-                <span className="text-xs text-amber-500 bg-amber-100 dark:bg-amber-500/20 px-2 py-1 rounded-full">
-                  (edited)
-                </span>
-              )}
-            </div>
-          )}
-
-          <div className="prose prose-sm max-w-none">
-            <p className="text-gray-900 whitespace-pre-wrap break-words">
-              {message.content}
-            </p>
-          </div>
-
-          {message.attachments && message.attachments.length > 0 && (
-            <div className="mt-2 space-y-2">
-              {message.attachments.map((attachment: any, index: number) => (
-                <div
-                  key={index}
-                  className="flex items-center space-x-2 p-2 bg-gray-100 rounded border"
-                >
-                  <Paperclip className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium">
-                    {attachment.fileName}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    ({(attachment.fileSize / 1024).toFixed(1)} KB)
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {Object.keys(reactions).length > 0 && (
-            <div className="flex items-center space-x-2 mt-2">
-              {Object.entries(reactions).map(
-                ([emoji, userIds]: [string, any]) => (
-                  <button
-                    key={emoji}
-                    onClick={() => onReaction(message.id, emoji)}
-                    className="flex items-center space-x-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 rounded-full text-sm transition-colors"
-                  >
-                    <span>{emoji}</span>
-                    <span className="text-blue-600 font-medium">
-                      {userIds.length}
-                    </span>
-                  </button>
-                ),
-              )}
-            </div>
-          )}
-
-          {message.readReceipts && message.readReceipts.length > 0 && (
-            <div className="mt-1 flex items-center space-x-1">
-              <span className="text-xs text-gray-400">
-                Seen by {message.readReceipts.length} member
-                {message.readReceipts.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Message Actions */}
-        <div className="opacity-0 group-hover:opacity-100 flex items-center space-x-1 transition-opacity">
-          <button
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="p-1 hover:bg-gray-200 rounded transition-colors"
-            title="Add reaction"
-          >
-            <Smile className="h-4 w-4" />
-          </button>
-
-          <button
-            onClick={() => onReply(message)}
-            className="p-1 hover:bg-gray-200 rounded transition-colors"
-            title="Reply in thread"
-          >
-            <Reply className="h-4 w-4" />
-          </button>
-
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="p-1 hover:bg-gray-200 rounded transition-colors"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Emoji Picker */}
-      {showEmojiPicker && (
-        <div className="absolute top-full right-4 z-10">
-          <EmojiPicker
-            onEmojiClick={(emojiObject) => {
-              onReaction(message.id, emojiObject.emoji);
-              setShowEmojiPicker(false);
-            }}
-            height={300}
-            width={280}
-          />
-        </div>
-      )}
-
-      {/* Context Menu */}
-      {showMenu && (
-        <div className="absolute top-full right-4 mt-1 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-10">
-          <button
-            onClick={() => {
-              onReply(message);
-              setShowMenu(false);
-            }}
-            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center space-x-2"
-          >
-            <Reply className="h-4 w-4" />
-            <span>Reply in thread</span>
-          </button>
-
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(message.content);
-              setShowMenu(false);
-            }}
-            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center space-x-2"
-          >
-            <Copy className="h-4 w-4" />
-            <span>Copy text</span>
-          </button>
-
-          {isOwn && (
-            <>
-              <button
-                onClick={() => {
-                  onEdit(message);
-                  setShowMenu(false);
-                }}
-                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 flex items-center space-x-2"
-              >
-                <Edit2 className="h-4 w-4" />
-                <span>Edit message</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  onDelete(message.id);
-                  setShowMenu(false);
-                }}
-                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 text-red-600 flex items-center space-x-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                <span>Delete message</span>
-              </button>
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 interface MessageInputProps {
   onSend: (content: string, replyToId?: string) => void;
@@ -328,7 +70,7 @@ function MessageInput({
     // Auto-resize textarea
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight} px`;
     }
 
     // Handle typing indicators
@@ -470,7 +212,7 @@ function TypingIndicator() {
         <span className="text-sm text-gray-700 dark:text-gray-200 font-medium">
           {userNames.join(", ")}
           {remaining > 0 &&
-            ` and ${remaining} other${remaining > 1 ? "s" : ""}`}{" "}
+            ` and ${remaining} other${remaining > 1 ? "s" : ""} `}{" "}
           {typingUsers.size === 1 ? "is" : "are"} typing...
         </span>
       </div>
@@ -491,6 +233,7 @@ export default function ChatWindow() {
 
   const [editingMessage, setEditingMessage] = useState<MessageDto | null>(null);
   const [replyTo, setReplyTo] = useState<MessageDto | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -595,7 +338,7 @@ export default function ChatWindow() {
             <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
               {conversation.members.length} member
               {conversation.members.length !== 1 ? "s" : ""}
-              {conversation.description && ` • ${conversation.description}`}
+              {conversation.description && ` • ${conversation.description} `}
             </p>
           </div>
         </div>
@@ -610,7 +353,14 @@ export default function ChatWindow() {
           <button className="p-3 glass-strong rounded-xl hover:neon-glow-blue text-gray-600 dark:text-gray-300 hover:text-violet-600 transition-all duration-200 transform hover:scale-105">
             <Info className="h-5 w-5" />
           </button>
-          <button className="p-3 glass-strong rounded-xl hover:neon-glow-blue text-gray-600 dark:text-gray-300 hover:text-violet-600 transition-all duration-200 transform hover:scale-105">
+          <button
+            onClick={() => {
+              if (conversation.type === "GROUP") {
+                setShowSettings(true);
+              }
+            }}
+            className="p-3 glass-strong rounded-xl hover:neon-glow-blue text-gray-600 dark:text-gray-300 hover:text-violet-600 transition-all duration-200 transform hover:scale-105"
+          >
             <Settings className="h-5 w-5" />
           </button>
         </div>
@@ -652,15 +402,15 @@ export default function ChatWindow() {
                 !prevMessage ||
                 prevMessage.userId !== message.userId ||
                 new Date(message.createdAt).getTime() -
-                  new Date(prevMessage.createdAt).getTime() >
-                  5 * 60 * 1000;
+                new Date(prevMessage.createdAt).getTime() >
+                5 * 60 * 1000;
 
               const isFirst =
                 !prevMessage ||
                 prevMessage.userId !== message.userId ||
                 new Date(message.createdAt).getTime() -
-                  new Date(prevMessage.createdAt).getTime() >
-                  5 * 60 * 1000;
+                new Date(prevMessage.createdAt).getTime() >
+                5 * 60 * 1000;
 
               return (
                 <Message
@@ -691,6 +441,26 @@ export default function ChatWindow() {
         onCancelReply={() => setReplyTo(null)}
         disabled={state.sendingMessage}
       />
+
+      {/* Settings Slide-in Panel */}
+      {showSettings && conversation.type === "GROUP" && (
+        <>
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 animate-fade-in"
+            onClick={() => setShowSettings(false)}
+          />
+
+          {/* Slide-in Panel */}
+          <div className="fixed right-0 top-0 bottom-0 w-full max-w-2xl bg-white dark:bg-gray-900 z-50 shadow-2xl animate-slide-in-right overflow-hidden">
+            <GroupSettingsPage
+              conversationId={conversation.id}
+              workspaceId={conversation.workspaceId}
+              onBack={() => setShowSettings(false)}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }

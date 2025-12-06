@@ -2,19 +2,23 @@ import axios from "axios";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-export interface ConversationType {
-  DM: "DM";
-  GROUP: "GROUP";
-  DOCUMENT: "DOCUMENT";
-}
+export const ConversationType = {
+  DM: "DM",
+  GROUP: "GROUP",
+  DOCUMENT: "DOCUMENT",
+} as const;
 
-export interface ConversationRole {
-  ADMIN: "ADMIN";
-  MEMBER: "MEMBER";
-}
+export type ConversationTypeType = typeof ConversationType[keyof typeof ConversationType];
+
+export const ConversationRole = {
+  ADMIN: "ADMIN",
+  MEMBER: "MEMBER",
+} as const;
+
+export type ConversationRoleType = typeof ConversationRole[keyof typeof ConversationRole];
 
 export interface CreateConversationDto {
-  type: "DM" | "GROUP" | "DOCUMENT";
+  type: ConversationTypeType;
   name?: string;
   description?: string;
   icon?: string;

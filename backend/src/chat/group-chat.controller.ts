@@ -32,7 +32,7 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 @Controller("group-chats")
 @UseGuards(JwtAuthGuard)
 export class GroupChatController {
-  constructor(private readonly groupChatService: GroupChatService) {}
+  constructor(private readonly groupChatService: GroupChatService) { }
 
   // Group Chat Management
   @Post()
@@ -41,7 +41,7 @@ export class GroupChatController {
     @CurrentUser() user: any,
     @Body() dto: CreateGroupChatDto,
   ): Promise<GroupChatDto> {
-    return this.groupChatService.createGroupChat(user.sub, dto);
+    return this.groupChatService.createGroupChat(user.id, dto);
   }
 
   @Get("workspace/:workspaceId")
@@ -52,7 +52,7 @@ export class GroupChatController {
     @Query("limit") limit?: number,
   ): Promise<{ chats: GroupChatDto[]; total: number; hasMore: boolean }> {
     return this.groupChatService.getGroupChats(
-      user.sub,
+      user.id,
       workspaceId,
       page ? parseInt(String(page)) : 1,
       limit ? parseInt(String(limit)) : 50,
@@ -64,7 +64,7 @@ export class GroupChatController {
     @CurrentUser() user: any,
     @Param("conversationId") conversationId: string,
   ): Promise<GroupChatDto> {
-    return this.groupChatService.getGroupChat(user.sub, conversationId);
+    return this.groupChatService.getGroupChat(user.id, conversationId);
   }
 
   @Put(":conversationId")
@@ -73,7 +73,7 @@ export class GroupChatController {
     @Param("conversationId") conversationId: string,
     @Body() dto: UpdateGroupChatDto,
   ): Promise<GroupChatDto> {
-    return this.groupChatService.updateGroupChat(user.sub, conversationId, dto);
+    return this.groupChatService.updateGroupChat(user.id, conversationId, dto);
   }
 
   @Delete(":conversationId")
@@ -82,7 +82,7 @@ export class GroupChatController {
     @CurrentUser() user: any,
     @Param("conversationId") conversationId: string,
   ): Promise<void> {
-    return this.groupChatService.deleteGroupChat(user.sub, conversationId);
+    return this.groupChatService.deleteGroupChat(user.id, conversationId);
   }
 
   // Member Management
@@ -92,7 +92,7 @@ export class GroupChatController {
     @Param("conversationId") conversationId: string,
     @Body() dto: AddGroupMemberDto,
   ): Promise<GroupChatMemberDto[]> {
-    return this.groupChatService.addMembers(user.sub, conversationId, dto);
+    return this.groupChatService.addMembers(user.id, conversationId, dto);
   }
 
   @Get(":conversationId/members")
@@ -100,7 +100,7 @@ export class GroupChatController {
     @CurrentUser() user: any,
     @Param("conversationId") conversationId: string,
   ): Promise<GroupChatMemberDto[]> {
-    return this.groupChatService.getGroupMembers(user.sub, conversationId);
+    return this.groupChatService.getGroupMembers(user.id, conversationId);
   }
 
   @Delete(":conversationId/members")
@@ -110,7 +110,7 @@ export class GroupChatController {
     @Param("conversationId") conversationId: string,
     @Body() dto: RemoveGroupMemberDto,
   ): Promise<void> {
-    return this.groupChatService.removeMember(user.sub, conversationId, dto);
+    return this.groupChatService.removeMember(user.id, conversationId, dto);
   }
 
   @Put(":conversationId/members/role")
@@ -120,7 +120,7 @@ export class GroupChatController {
     @Body() dto: UpdateGroupMemberRoleDto,
   ): Promise<GroupChatMemberDto> {
     return this.groupChatService.updateMemberRole(
-      user.sub,
+      user.id,
       conversationId,
       dto,
     );
@@ -133,7 +133,7 @@ export class GroupChatController {
     @Body() dto: GroupMemberPreferencesDto,
   ): Promise<GroupChatMemberDto> {
     return this.groupChatService.updateMemberPreferences(
-      user.sub,
+      user.id,
       conversationId,
       dto,
     );
@@ -145,7 +145,7 @@ export class GroupChatController {
     @CurrentUser() user: any,
     @Body() dto: MentionMessageDto,
   ): Promise<any> {
-    return this.groupChatService.sendMentionMessage(user.sub, dto);
+    return this.groupChatService.sendMentionMessage(user.id, dto);
   }
 
   @Post(":conversationId/messages/pin")
@@ -155,7 +155,7 @@ export class GroupChatController {
     @Param("conversationId") conversationId: string,
     @Body() dto: PinMessageDto,
   ): Promise<void> {
-    return this.groupChatService.pinMessage(user.sub, conversationId, dto);
+    return this.groupChatService.pinMessage(user.id, conversationId, dto);
   }
 
   @Delete(":conversationId/messages/:messageId/pin")
@@ -166,7 +166,7 @@ export class GroupChatController {
     @Param("messageId") messageId: string,
   ): Promise<void> {
     return this.groupChatService.unpinMessage(
-      user.sub,
+      user.id,
       conversationId,
       messageId,
     );
@@ -177,7 +177,7 @@ export class GroupChatController {
     @CurrentUser() user: any,
     @Param("conversationId") conversationId: string,
   ): Promise<any[]> {
-    return this.groupChatService.getPinnedMessages(user.sub, conversationId);
+    return this.groupChatService.getPinnedMessages(user.id, conversationId);
   }
 
   // Workspace Info
@@ -192,7 +192,7 @@ export class GroupChatController {
     canCreateGroups: boolean;
     groupCount: number;
   }> {
-    return this.groupChatService.getWorkspaceInfo(user.sub, workspaceId);
+    return this.groupChatService.getWorkspaceInfo(user.id, workspaceId);
   }
 
   // Search Features
@@ -207,7 +207,7 @@ export class GroupChatController {
     hasMore: boolean;
   }> {
     return this.groupChatService.searchGroupMessages(
-      user.sub,
+      user.id,
       workspaceId,
       dto,
     );
@@ -221,7 +221,7 @@ export class GroupChatController {
     @Body() body: { inviteeIds: string[] },
   ): Promise<GroupChatInviteDto[]> {
     return this.groupChatService.createGroupInvite(
-      user.sub,
+      user.id,
       conversationId,
       body.inviteeIds,
     );
@@ -232,7 +232,7 @@ export class GroupChatController {
     @CurrentUser() user: any,
     @Param("inviteId") inviteId: string,
   ): Promise<GroupChatDto> {
-    return this.groupChatService.acceptGroupInvite(user.sub, inviteId);
+    return this.groupChatService.acceptGroupInvite(user.id, inviteId);
   }
 
   @Post("invites/:inviteId/decline")
@@ -241,7 +241,7 @@ export class GroupChatController {
     @CurrentUser() user: any,
     @Param("inviteId") inviteId: string,
   ): Promise<void> {
-    return this.groupChatService.declineGroupInvite(user.sub, inviteId);
+    return this.groupChatService.declineGroupInvite(user.id, inviteId);
   }
 
   // Stats and Analytics
@@ -250,7 +250,7 @@ export class GroupChatController {
     @CurrentUser() user: any,
     @Param("conversationId") conversationId: string,
   ): Promise<any> {
-    return this.groupChatService.getGroupChatStats(user.sub, conversationId);
+    return this.groupChatService.getGroupChatStats(user.id, conversationId);
   }
 
   // Leave Group
@@ -260,8 +260,8 @@ export class GroupChatController {
     @CurrentUser() user: any,
     @Param("conversationId") conversationId: string,
   ): Promise<void> {
-    return this.groupChatService.removeMember(user.sub, conversationId, {
-      userId: user.sub,
+    return this.groupChatService.removeMember(user.id, conversationId, {
+      userId: user.id,
     });
   }
 }

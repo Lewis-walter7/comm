@@ -125,9 +125,14 @@ export class WorkspacesService {
     }
 
     // Check if user is a member
-    const isMember = workspace.members.some((m) => m.userId === userId);
-    if (!isMember) {
+    const membership = workspace.members.find((m) => m.userId === userId);
+    if (!membership) {
       throw new ForbiddenException('You do not have access to this workspace');
+    }
+
+    // Check if membership is active
+    if (membership.status === MemberStatus.PENDING) {
+      throw new ForbiddenException('Your membership is pending approval from the workspace owner');
     }
 
     // Generate invite code if it doesn't exist

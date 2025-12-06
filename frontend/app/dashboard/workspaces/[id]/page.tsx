@@ -170,23 +170,32 @@ export default function WorkspaceDetailPage() {
     }
 
     if (error || !workspace) {
+        const isPendingError = error?.includes('pending approval');
+
         return (
             <ProtectedRoute>
                 <div className="text-center py-20">
-                    <div className="w-20 h-20 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <svg className="w-10 h-10 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
+                    <div className={`w-20 h-20 ${isPendingError ? 'bg-yellow-100 dark:bg-yellow-900/20' : 'bg-red-100 dark:bg-red-900/20'} rounded-full flex items-center justify-center mx-auto mb-6`}>
+                        {isPendingError ? (
+                            <svg className="w-10 h-10 text-yellow-600 dark:text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        ) : (
+                            <svg className="w-10 h-10 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        )}
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                        {error || 'Workspace not found'}
-                    </h3>
-                    <p className="text-gray-500 dark:text-gray-400 mb-8">
-                        The workspace you're looking for doesn't exist or you don't have access to it.
+                    <h2 className={`text-2xl font-bold ${isPendingError ? 'text-yellow-900 dark:text-yellow-100' : 'text-gray-900 dark:text-white'} mb-3`}>
+                        {isPendingError ? 'Pending Approval' : 'Error'}
+                    </h2>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                        {isPendingError
+                            ? 'Your request to join this workspace is pending approval from the workspace owner. You\'ll receive a notification once your request is reviewed.'
+                            : error || 'Workspace not found'}
                     </p>
                     <button
                         onClick={() => router.push('/dashboard')}
-                        className="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-medium"
                     >
                         Back to Dashboard
                     </button>

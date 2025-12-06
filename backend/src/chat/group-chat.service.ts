@@ -33,7 +33,7 @@ export class GroupChatService {
   constructor(
     private prisma: PrismaService,
     private chatService: ChatService,
-  ) {}
+  ) { }
 
   // Group Chat Creation
   async createGroupChat(
@@ -243,7 +243,7 @@ export class GroupChatService {
       // Mark conversation as deleted by updating name
       await tx.conversation.update({
         where: { id: conversationId },
-        data: { name: "[Deleted]", deletedAt: new Date() },
+        data: { name: "[Deleted]" },
       });
     });
   }
@@ -321,8 +321,7 @@ export class GroupChatService {
     await this.createSystemMessage(
       conversationId,
       userId,
-      `${addedUsers.map((u) => u.name).join(", ")} ${
-        addedUsers.length === 1 ? "was" : "were"
+      `${addedUsers.map((u) => u.name).join(", ")} ${addedUsers.length === 1 ? "was" : "were"
       } added to the group`,
       { type: "members_added", userIds: newUserIds },
     );
@@ -431,8 +430,7 @@ export class GroupChatService {
     await this.createSystemMessage(
       conversationId,
       userId,
-      `${updatedMember.user.name} was ${
-        dto.role === ConversationRole.ADMIN ? "promoted to" : "demoted from"
+      `${updatedMember.user.name} was ${dto.role === ConversationRole.ADMIN ? "promoted to" : "demoted from"
       } admin`,
       { type: "role_changed", userId: dto.userId, newRole: dto.role },
     );
@@ -531,7 +529,7 @@ export class GroupChatService {
         userId,
         content: dto.content,
         replyToId: dto.replyToId,
-        attachments: dto.attachments ? JSON.stringify(dto.attachments) : null,
+        attachments: dto.attachments ? (dto.attachments as any) : Prisma.JsonNull,
         mentions: dto.mentions,
         messageType: "text",
         searchKeywords: this.extractKeywords(dto.content),
@@ -826,7 +824,7 @@ export class GroupChatService {
       conversation: {
         id: invite.conversation.id,
         name: invite.conversation.name!,
-        icon: invite.conversation.icon,
+        icon: invite.conversation.icon || undefined,
         memberCount: invite.conversation.members.length,
       },
       inviter: invite.inviter,
@@ -841,7 +839,7 @@ export class GroupChatService {
       where: { id: inviteId, inviteeId: userId, status: "pending" },
       include: {
         conversation: {
-          include: this.getGroupChatInclude().include,
+          include: this.getGroupChatInclude(),
         },
       },
     });
@@ -914,7 +912,9 @@ export class GroupChatService {
 
     if (
       !membership ||
-      ![WorkspaceRole.OWNER, WorkspaceRole.ADMIN].includes(membership.role)
+      !([WorkspaceRole.OWNER, WorkspaceRole.ADMIN] as WorkspaceRole[]).includes(
+        membership.role,
+      )
     ) {
       throw new ForbiddenException("Workspace admin access required");
     }
@@ -1103,44 +1103,42 @@ export class GroupChatService {
 
   private getGroupChatInclude() {
     return {
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatarUrl: true,
-          },
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatarUrl: true,
         },
-        members: {
-          where: { leftAt: null },
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                avatarUrl: true,
-              },
-            },
-          },
-          orderBy: [{ role: "asc" }, { joinedAt: "asc" }],
-        },
-        messages: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatarUrl: true,
-              },
+      },
+      members: {
+        where: { leftAt: null },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
             },
           },
         },
-        presence: {
-          where: { status: "online" },
+        orderBy: [
+          { role: Prisma.SortOrder.asc },
+          { joinedAt: Prisma.SortOrder.asc },
+        ],
+      },
+      messages: {
+        orderBy: { createdAt: Prisma.SortOrder.desc },
+        take: 1,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+            },
+          },
         },
       },
     };
@@ -1148,7 +1146,7 @@ export class GroupChatService {
 
   private formatGroupChat(conversation: any): GroupChatDto {
     const activeMembers = conversation.members.filter((m: any) => !m.leftAt);
-    const onlineMembers = conversation.presence?.length || 0;
+    const onlineMembers = 0; // Presence not available on conversation
     const lastMessage = conversation.messages?.[0];
 
     return {

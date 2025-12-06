@@ -1,5 +1,5 @@
 import axios from "axios";
-import { ConversationType, ConversationRole } from "../chat/chatApi";
+import { ConversationType, ConversationRole, ConversationRoleType, ConversationTypeType } from "../chat/chatApi";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -30,7 +30,7 @@ export interface AddGroupMemberDto {
 
 export interface UpdateGroupMemberRoleDto {
   userId: string;
-  role: ConversationRole;
+  role: ConversationRoleType;
 }
 
 export interface RemoveGroupMemberDto {
@@ -68,7 +68,7 @@ export interface MentionMessageDto {
 export interface GroupChatMember {
   id: string;
   userId: string;
-  role: ConversationRole;
+  role: ConversationRoleType;
   joinedAt: Date;
   lastReadAt?: Date;
   leftAt?: Date;
@@ -85,7 +85,7 @@ export interface GroupChatMember {
 export interface GroupChat {
   id: string;
   workspaceId: string;
-  type: ConversationType;
+  type: ConversationTypeType;
   name: string;
   description?: string;
   icon?: string;

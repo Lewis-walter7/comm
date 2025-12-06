@@ -30,7 +30,7 @@ import * as CryptoJS from "crypto-js";
 
 @Injectable()
 export class ChatService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   // Conversation Management
   async createConversation(
@@ -39,6 +39,21 @@ export class ChatService {
   ): Promise<ConversationDto> {
     // Check workspace access
     await this.checkWorkspaceAccess(userId, dto.workspaceId);
+
+    // For GROUP conversations, check if workspace has more than one member
+    if (dto.type === ConversationType.GROUP) {
+      const workspaceMembers = await this.prisma.workspaceMember.count({
+        where: {
+          workspaceId: dto.workspaceId,
+        },
+      });
+
+      if (workspaceMembers < 2) {
+        throw new BadRequestException(
+          "Cannot create group conversations in a workspace with only one member",
+        );
+      }
+    }
 
     // For DMs, validate that only 2 members are specified
     if (dto.type === ConversationType.DM) {
@@ -297,9 +312,9 @@ export class ChatService {
     const messages = await this.prisma.message.findMany({
       where: whereClause,
       include: this.messageInclude,
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "asc" },
       skip: ((query.page || 1) - 1) * (query.limit || 50),
-      take: query.limit,
+      take: query.limit ? Number(query.limit) : 50,
     });
 
     return messages.map((message) =>
